@@ -7,7 +7,7 @@ Goal: give new developers and coding agents a fast mental model of architecture,
 Demo URL
 
 ```text
-https://d2aqs0exh7ehxw.cloudfront.net/
+https://d1tja37xgctu7e.cloudfront.net/
 ```
 
 ## Secrets
@@ -187,31 +187,53 @@ flowchart TB
 - User identity from `oid` claim (fallback to `sub`)
 - Session isolation per authenticated user
 
-1. If valid, backend serves chat APIs; otherwise returns 401/403.
+10. If valid, backend serves chat APIs; otherwise returns 401/403.
 
 ## Azure AD Setup (What Was Configured)
 
-No IDs, tenant names, or credentials are documented here.
+The settings below are template values and can be reused as a baseline for future updates.
+
+### Current Deployment Template Values
+
+- Tenant ID: `<tenant-id>`
+- Application (client) ID: `<application-id>`
+- Application ID URI: `api://<application-id>`
+- Delegated scope value: `chat.access`
+- Frontend base URL: `https://<cloudfront-domain>`
+- Redirect URI: `https://<cloudfront-domain>/auth/callback`
+- Post-logout redirect URI: `https://<cloudfront-domain>`
 
 ### 1. App Registration For OAuth2 SPA Login
 
-- Redirect URI configured for SPA callback path (`/auth/callback`)
-- Post-logout redirect URI configured
-- OAuth2 Authorization Code + PKCE flow used from browser
+- Platform: **Single-page application (SPA)**
+- Redirect URI:
+     - `https://<cloudfront-domain>/auth/callback`
+- Post-logout redirect URI:
+     - `https://<cloudfront-domain>`
+- OAuth2 Authorization Code + PKCE flow is used from browser (no client secret in frontend).
 
 ### 2. Expose API Scope
 
-- Application ID URI set to `api://<application-id>`
+- Application ID URI set to:
+     - `api://<application-id>`
 - Delegated scope created and enabled:
-- Scope name: `chat.access`
-- Consent display name/description configured
-- Who can consent: **Admins and users**
+     - Scope name: `chat.access`
+     - Enabled: `true`
+     - Who can consent: **Admins and users**
+
+Also configure pre-authorized client application mapping:
+
+- Client app ID: `<application-id>`
+- Delegated permission ID: `<chat-access-scope-guid>` (scope `chat.access`)
 
 ### 3. API Permissions
 
 - Client app requests delegated permission to the exposed API scope (`chat.access`)
 - OpenID scopes requested for sign-in profile claims (`openid`, `profile`, `email`)
 - Tenant admin consent can be granted when organization policy requires it
+- Required resource access includes:
+     - Resource app ID: `<application-id>` with delegated scope `chat.access`
+- Optional: add Microsoft Graph delegated scope `User.Read` (`resourceAppId`: `<microsoft-graph-app-id>`) if your organization or UI flow requires it.
 
 ### 4. Supported Account Types
 
@@ -219,6 +241,17 @@ No IDs, tenant names, or credentials are documented here.
 - Use your tenant ID endpoint (not `common`):
 - `https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize`
 - `https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token`
+
+### 5. Manifest Requirements (Important)
+
+Set these values in the Entra app manifest:
+
+- `identifierUris` contains `api://<application-id>`
+- `api.oauth2PermissionScopes` includes enabled scope `chat.access`
+- `api.preAuthorizedApplications` contains this app ID and delegated permission ID for `chat.access`
+- `api.requestedAccessTokenVersion` = `2`
+
+Without `requestedAccessTokenVersion: 2`, access tokens can fail API Gateway JWT issuer validation (v2.0 endpoint expected).
 
 ## Runtime Configuration (Conceptual)
 
@@ -251,6 +284,12 @@ Backend requires:
 - Sets `NEXT_PUBLIC_AZURE_API_SCOPE` as `api://${AZURE_APPLICATION_ID}/chat.access`
 - Result: this value is compiled into frontend assets at build time
 
+### Frontend runtime config: What is loaded at request time
+
+- `frontend/lib/runtime-config.ts`
+- Fetches `/config.json` at browser runtime with `cache: "no-store"`
+- Reads `chatApiBaseUrl` so API endpoint can be updated without rebuilding frontend assets
+
 ### Backend Terraform: What API Gateway is configured to enforce
 
 - `infra/backend/variables.tf`
@@ -279,7 +318,6 @@ Backend requires:
 - `backend/`: Lambda source and packaging
 - `infra/frontend/`: S3 + CloudFront + SSM outputs
 - `infra/backend/`: API Gateway + Lambda + DynamoDB + Secrets + SSM outputs
-- `local/`: local notes and operational docs
 
 ## Security Notes
 
@@ -299,3 +337,5 @@ If login or API auth fails, verify in order:
 5. Access token `scp` contains `chat.access`.
 6. Redirect URI in Azure exactly matches deployed callback URL.
 7. Tenant/account-type and consent policy align with the user account being tested.
+8. In Entra app manifest, set `api.requestedAccessTokenVersion` to `2` so access tokens match API Gateway v2 issuer validation.
+9. After Azure setting changes, sign out and clear browser session storage (`oauth2.azuread.session`) before retesting.
