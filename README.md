@@ -7,7 +7,7 @@ Goal: give new developers and coding agents a fast mental model of architecture,
 Demo URL
 
 ```text
-https://d2aqs0exh7ehxw.cloudfront.net/
+	https://d1tja37xgctu7e.cloudfront.net
 ```
 
 ## Secrets
