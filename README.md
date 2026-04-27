@@ -1,4 +1,4 @@
-# AWS + Azure Single Tenant Example
+# AWS + Azure AD Single-Tenant Example
 
 This project is a serverless chat app with a Next.js frontend on AWS and a Python Lambda backend protected by API Gateway JWT authorizer using Microsoft Entra ID (Azure AD) delegated access tokens.
 
