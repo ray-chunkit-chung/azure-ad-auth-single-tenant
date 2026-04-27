@@ -108,8 +108,7 @@ flowchart LR
 
      APIGW --> L[Python Lambda\ntrusted authorizer claims + chat logic]
   L --> DDB[(DynamoDB\nchat data)]
-  L --> SM[(Secrets Manager\nOpenAI key)]
-  L -.->|OIDC metadata + JWKS| AAD
+     L --> SM[(Secrets Manager\nOpenAI key)]
 ```
 
 ### OAuth2 + API Authorization Flow (Mermaid)
@@ -258,7 +257,7 @@ Backend requires:
 - `azure_required_scope` default is `chat.access`
 - `infra/backend/main.tf`
 - Configures API Gateway JWT authorizer issuer as `https://login.microsoftonline.com/<tenant-id>/v2.0`
-- Configures audience as `<application-id>` and `api://<application-id>`
+- Configures audience as `<application-id>` and `api://<application-id>` (Option A compatibility mode)
 - Applies required scope `chat.access` on all protected chat routes
 
 ### Backend runtime: What Lambda trusts on every API call
